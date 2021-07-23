@@ -43,6 +43,11 @@ func ValidatePlatform(p *vsphere.Platform, fldPath *field.Path) field.ErrorList 
 		allErrs = append(allErrs, validateFolder(p, fldPath)...)
 	}
 
+	// resource pool is optional, but if provided should pass validation
+	if len(p.ResourcePool) != 0 {
+		allErrs = append(allErrs, validateResourcePool(p, fldPath)...)
+	}
+
 	return allErrs
 }
 
@@ -85,7 +90,7 @@ func validateVIPs(p *vsphere.Platform, fldPath *field.Path) field.ErrorList {
 	return allErrs
 }
 
-// validateFolder checks that a provided folder is in absolute path in the correct datacenter.
+// validateFolder checks that a provided folder is an absolute path in the correct datacenter.
 func validateFolder(p *vsphere.Platform, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
@@ -98,6 +103,28 @@ func validateFolder(p *vsphere.Platform, fldPath *field.Path) field.ErrorList {
 	if !strings.HasPrefix(p.Folder, expectedPrefix) {
 		errMsg := fmt.Sprintf("folder must be absolute path: expected prefix %s", expectedPrefix)
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("folder"), p.Folder, errMsg))
+	}
+
+	return allErrs
+}
+
+// validateResourcePool checks that a provided resource pool is an absolute path in the correct cluster.
+func validateResourcePool(p *vsphere.Platform, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	dc := p.Datacenter
+	if len(dc) == 0 {
+		dc = "<datacenter>"
+	}
+	cluster := p.Cluster
+	if len(cluster) == 0 {
+		cluster = "<cluster>"
+	}
+	expectedPrefix := fmt.Sprintf("/%s/host/%s/Resources/", dc, cluster)
+
+	if !strings.HasPrefix(p.ResourcePool, expectedPrefix) {
+		errMsg := fmt.Sprintf("resourcePool must be absolute path: expected prefix %s", expectedPrefix)
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("resourcePool"), p.ResourcePool, errMsg))
 	}
 
 	return allErrs
