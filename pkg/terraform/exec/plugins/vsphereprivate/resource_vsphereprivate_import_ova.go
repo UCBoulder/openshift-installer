@@ -56,6 +56,13 @@ func resourceVSpherePrivateImportOva() *schema.Resource {
 				ForceNew:     true,
 				ValidateFunc: validation.NoZeroValues,
 			},
+			"resource_pool": {
+				Type:         schema.TypeString,
+				Description:  "The absolute path to the resource pool.",
+				Required:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.NoZeroValues,
+			},
 			"network": {
 				Type:         schema.TypeString,
 				Description:  "The name of a network that the virtual machine will use.",
@@ -98,7 +105,7 @@ type importOvaParams struct {
 	Folder       *object.Folder
 }
 
-func findImportOvaParams(client *vim25.Client, datacenter, cluster, datastore, network, folder string) (*importOvaParams, error) {
+func findImportOvaParams(client *vim25.Client, datacenter, cluster, resourcePool, datastore, network, folder string) (*importOvaParams, error) {
 	var ccrMo mo.ClusterComputeResource
 
 	ctx, cancel := context.WithTimeout(context.TODO(), defaultAPITimeout)
@@ -123,6 +130,14 @@ func findImportOvaParams(client *vim25.Client, datacenter, cluster, datastore, n
 	importOvaParams.Folder = folderObj
 
 	clusterPath := fmt.Sprintf("/%s/host/%s", datacenter, cluster)
+
+	// Find the resource pool object by using its path provided by install-config,
+	// or generated in pkg/asset/machines/vsphere/machines.go
+	resourcePoolObj, err := finder.ResourcePool(ctx, resourcePool)
+	if err != nil {
+		return nil, err
+	}
+	importOvaParams.ResourcePool = resourcePoolObj
 
 	// Find the cluster object by the datacenter and cluster name to
 	// generate the path e.g. /datacenter/host/cluster
@@ -207,12 +222,6 @@ func findImportOvaParams(client *vim25.Client, datacenter, cluster, datastore, n
 		}
 
 		if foundDatastore && foundNetwork {
-			importOvaParams.Host = hostObj
-			resourcePool, err := hostObj.ResourcePool(ctx)
-			if err != nil {
-				return nil, err
-			}
-			importOvaParams.ResourcePool = resourcePool
 			return importOvaParams, nil
 		}
 	}
@@ -266,6 +275,7 @@ func resourceVSpherePrivateImportOvaCreate(d *schema.ResourceData, meta interfac
 	importOvaParams, err := findImportOvaParams(client,
 		d.Get("datacenter").(string),
 		d.Get("cluster").(string),
+		d.Get("resource_pool").(string),
 		d.Get("datastore").(string),
 		d.Get("network").(string),
 		d.Get("folder").(string))

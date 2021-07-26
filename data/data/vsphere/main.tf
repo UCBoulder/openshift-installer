@@ -45,14 +45,15 @@ data "vsphere_virtual_machine" "template" {
 }
 
 resource "vsphereprivate_import_ova" "import" {
-  name       = var.vsphere_template
-  filename   = var.vsphere_ova_filepath
-  cluster    = var.vsphere_cluster
-  datacenter = var.vsphere_datacenter
-  datastore  = var.vsphere_datastore
-  network    = var.vsphere_network
-  folder     = local.folder
-  tag        = vsphere_tag.tag.id
+  name          = var.vsphere_template
+  filename      = var.vsphere_ova_filepath
+  cluster       = var.vsphere_cluster
+  resource_pool = var.vsphere_resource_pool
+  datacenter    = var.vsphere_datacenter
+  datastore     = var.vsphere_datastore
+  network       = var.vsphere_network
+  folder        = local.folder
+  tag           = vsphere_tag.tag.id
 }
 
 resource "vsphere_tag_category" "category" {
