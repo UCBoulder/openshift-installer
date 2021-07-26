@@ -26,6 +26,10 @@ data "vsphere_compute_cluster" "cluster" {
   datacenter_id = data.vsphere_datacenter.datacenter.id
 }
 
+data "vsphere_resource_pool" "resource_pool" {
+  name = var.vsphere_resource_pool
+}
+
 data "vsphere_datastore" "datastore" {
   name          = var.vsphere_datastore
   datacenter_id = data.vsphere_datacenter.datacenter.id
@@ -86,7 +90,7 @@ module "bootstrap" {
   source = "./bootstrap"
 
   ignition      = var.ignition_bootstrap
-  resource_pool = data.vsphere_compute_cluster.cluster.resource_pool_id
+  resource_pool = data.vsphere_resource_pool.resource_pool.id
   datastore     = data.vsphere_datastore.datastore.id
   folder        = local.folder
   network       = data.vsphere_network.network.id
@@ -108,7 +112,7 @@ module "master" {
   instance_count = var.master_count
   ignition       = var.ignition_master
 
-  resource_pool = data.vsphere_compute_cluster.cluster.resource_pool_id
+  resource_pool = data.vsphere_resource_pool.resource_pool.id
   datastore     = data.vsphere_datastore.datastore.id
   folder        = local.folder
   network       = data.vsphere_network.network.id
