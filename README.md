@@ -1,67 +1,60 @@
-# OpenShift Installer
+# This branch applies our resource pool modifications on top of the OKD 4.7 release
 
-## Supported Platforms
+## To compile openshift-installer:
 
-* [AWS](docs/user/aws/README.md)
-* [AWS (UPI)](docs/user/aws/install_upi.md)
-* [Azure](docs/user/azure/README.md)
-* [Bare Metal (UPI)](docs/user/metal/install_upi.md)
-* [Bare Metal (IPI) (Experimental)](docs/user/metal/install_ipi.md)
-* [GCP](docs/user/gcp/README.md)
-* [GCP (UPI)](docs/user/gcp/install_upi.md)
-* [Libvirt with KVM](docs/dev/libvirt/README.md) (development only)
-* [OpenStack](docs/user/openstack/README.md)
-* [OpenStack (UPI)](docs/user/openstack/install_upi.md)
-* [Power](docs/user/power/install_upi.md)
-* [oVirt](docs/user/ovirt/install_ipi.md)
-* [oVirt (UPI)](docs/user/ovirt/install_upi.md)
-* [vSphere](docs/user/vsphere/README.md)
-* [vSphere (UPI)](docs/user/vsphere/install_upi.md)
-* [z/VM](docs/user/zvm/install_upi.md)
-
-## Quick Start
-
-First, install all [build dependencies](docs/dev/dependencies.md).
-
-Clone this repository. Then build the `openshift-install` binary with:
+For linux:
 
 ```sh
-hack/build.sh
+TAGS="okd" hack/build.sh
+tar -cvf openshift-install-linux-4.7.0-0.okd-2021-07-03-190901-resource-pool.tar.gz bin/openshift-install README.md
 ```
 
-This will create `bin/openshift-install`. This binary can then be invoked to create an OpenShift cluster, like so:
+For mac:
 
 ```sh
-bin/openshift-install create cluster
+go generate ./data
+SKIP_GENERATION=y GOOS=darwin GOARCH=amd64 TAGS="okd" hack/build.sh
+tar -cvf openshift-install-mac-4.7.0-0.okd-2021-07-03-190901-resource-pool.tar.gz bin/openshift-install README.md
 ```
 
-The installer will show a series of prompts for user-specific information and use reasonable defaults for everything else.
-In non-interactive contexts, prompts can be bypassed by [providing an `install-config.yaml`](docs/user/overview.md#multiple-invocations).
-
-If you have trouble, refer to [the troubleshooting guide](docs/user/troubleshooting.md).
-
-### Connect to the cluster
-
-Details for connecting to your new cluster are printed by the `openshift-install` binary upon completion, and are also available in the `.openshift_install.log` file.
-
-Example output:
+Generate sha256sums:
 
 ```sh
-INFO Waiting 10m0s for the openshift-console route to be created...
-INFO Install complete!
-INFO To access the cluster as the system:admin user when using 'oc', run 'export KUBECONFIG=/path/to/installer/auth/kubeconfig'
-INFO Access the OpenShift web-console here: https://console-openshift-console.apps.${CLUSTER_NAME}.${BASE_DOMAIN}:6443
-INFO Login to the console with user: kubeadmin, password: 5char-5char-5char-5char
+sha256sum *.tar.gz > sha256sum.txt
 ```
 
-### Cleanup
+## To bump version:
 
-Destroy the cluster and release associated resources with:
+Rebase on correct `release-4.X-okd` branch from [vrutkovs](https://github.com/vrutkovs/installer/branches), then grab the "Pull From: " container ref of your desired release. For example [4.7.0-0.okd-2021-07-03-190901](https://github.com/openshift/okd/releases/tag/4.7.0-0.okd-2021-07-03-190901) looks like:
 
-```sh
-openshift-install destroy cluster
+```
+Name:           4.7.0-0.okd-2021-07-03-190901
+Digest:         sha256:66857f330c4b6199ce319c9b5b5ff3bd7ff3d4c75113cd3d33302216312d345f
+Created:        2021-07-03T20:10:00Z
+OS/Arch:        linux/amd64
+Manifests:      493
+Metadata files: 1
+
+Pull From: quay.io/openshift/okd@sha256:66857f330c4b6199ce319c9b5b5ff3bd7ff3d4c75113cd3d33302216312d345f
+
+Release Metadata:
+  Version:  4.7.0-0.okd-2021-07-03-190901
+  Upgrades: <none>
+  Metadata:
 ```
 
-Note that you almost certainly also want to clean up the installer state files too, including `auth/`, `terraform.tfstate`, etc.
-The best thing to do is always pass the `--dir` argument to `install` and `destroy`.
-And if you want to reinstall from scratch, `rm -rf` the asset directory beforehand.
+In this case, the value you would grab is `quay.io/openshift/okd@sha256:66857f330c4b6199ce319c9b5b5ff3bd7ff3d4c75113cd3d33302216312d345f`. Then, paste that into `pkg/asset/releaseimage/default.go` like so:
+
+
+```go
+var (
+	// defaultReleaseImageOriginal is the value served when defaultReleaseImagePadded is unmodified.
+	defaultReleaseImageOriginal = "quay.io/openshift/okd@sha256:66857f330c4b6199ce319c9b5b5ff3bd7ff3d4c75113cd3d33302216312d345f"
+	// defaultReleaseImagePadded may be replaced in the binary with a pull spec that overrides defaultReleaseImage as
+	// a null-terminated string within the allowed character length. This allows a distributor to override the payload
+	// location without having to rebuild the source.
+	defaultReleaseImagePadded = "\x00_RELEASE_IMAGE_LOCATION_\x00XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\x00"
+	defaultReleaseImagePrefix = "\x00_RELEASE_IMAGE_LOCATION_\x00"
+	defaultReleaseImageLength = len(defaultReleaseImagePadded)
+)
+```
