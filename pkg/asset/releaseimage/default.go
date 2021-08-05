@@ -20,7 +20,7 @@ import (
 
 var (
 	// defaultReleaseImageOriginal is the value served when defaultReleaseImagePadded is unmodified.
-	defaultReleaseImageOriginal = "registry.ci.openshift.org/origin/release:4.7"
+	defaultReleaseImageOriginal = "quay.io/openshift/okd@sha256:66857f330c4b6199ce319c9b5b5ff3bd7ff3d4c75113cd3d33302216312d345f"
 	// defaultReleaseImagePadded may be replaced in the binary with a pull spec that overrides defaultReleaseImage as
 	// a null-terminated string within the allowed character length. This allows a distributor to override the payload
 	// location without having to rebuild the source.
